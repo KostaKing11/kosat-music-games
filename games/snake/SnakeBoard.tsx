@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { memo, useEffect, useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import {
   BlurMask,
   Canvas,
@@ -27,11 +27,11 @@ import { colors, fonts } from '../../src/theme';
 import { HEART_PATTERN } from '../../src/ui/PixelHeart';
 import { GRID } from './constants';
 import type { SnakeEngine } from './useSnakeEngine';
+import { useSwipe } from './useSwipe';
 
 export type Burst = { id: number; cell: number; colors: string[] };
 export type PlusOne = { id: number; cell: number };
 
-const SWIPE_THRESHOLD = 18;
 const OFFSCREEN = [{ translateX: -9999 }, { translateY: -9999 }];
 
 // ---------------------------------------------------------------------------
@@ -293,7 +293,7 @@ export function SnakeBoard({ size, engine, covers, foodCover, foodTitle, bursts,
   const cell = size / GRID;
   const { body, prevBody, progress, food, foodReveal } = engine;
   const segmentCount = 3 + covers.length;
-  const origin = useRef<{ x: number; y: number } | null>(null);
+  const swipe = useSwipe(onSwipe);
 
   const checker = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
@@ -305,30 +305,10 @@ export function SnakeBoard({ size, engine, covers, foodCover, foodTitle, bursts,
     return builder.build();
   }, [cell]);
 
-  // Swipe po tabli: svaki pomeraj veći od praga je jedno skretanje (može i "L" potez).
-  const onGrant = (e: GestureResponderEvent) => {
-    origin.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-  };
-  const onMove = (e: GestureResponderEvent) => {
-    const o = origin.current;
-    if (!o) return;
-    const dx = e.nativeEvent.pageX - o.x;
-    const dy = e.nativeEvent.pageY - o.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
-    if (Math.abs(dx) > Math.abs(dy)) onSwipe(dx > 0 ? 1 : 3);
-    else onSwipe(dy > 0 ? 2 : 0);
-    origin.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-  };
-
   return (
     <View
       style={[styles.board, { width: size, height: size }]}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderTerminationRequest={() => false}
-      onResponderGrant={onGrant}
-      onResponderMove={onMove}
-      onResponderRelease={() => (origin.current = null)}
+      {...swipe}
     >
       <Canvas style={{ width: size, height: size }}>
         <RoundedRect x={0} y={0} width={size} height={size} r={14} color={colors.panel} />

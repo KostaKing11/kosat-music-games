@@ -88,7 +88,7 @@ Push na druge grane samo proverava da li build prolazi. APK je tada u **Actions 
 
 ## 5. Snake
 
-- Tabla 12×12. Upravlja se swipe-om po tabli ili d-padom ispod nje.
+- Tabla 12×12. Upravlja se swipe-om po tabli ili po velikom swipe polju ispod nje (bez dugmića).
 - Hrana je omot albuma, a iznad nje je tag sa nazivom pesme.
 - Kad pojedeš pesmu, ona krene na Spotify-ju, a njen omot postane deo repa, odmah iza glave. Pojavi se „+1“ i čestice u bojama omota. Zmija se ubrzava sa svakom pesmom.
 - **Počni od refrena**: pesma kreće od ~35% trajanja.
