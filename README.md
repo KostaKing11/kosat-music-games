@@ -104,6 +104,8 @@ Otvaranje dropova kao Starr Drop u Brawl Stars-u:
 - **Retkost pesme zavisi od toga koliko je slušaš.** Najslušanije pesme su najčešće (Retke), a one koje skoro ne slušaš su Legendarne. Podaci dolaze iz Spotify top lista (4 nedelje, 6 meseci, ~godinu) i poslednjih 50 odslušanih pesama. Pesme bez tih podataka raspoređuju se po datumu dodavanja: ranije dodate su češće.
 - Za ovo su potrebne dve dodatne Spotify dozvole (`user-top-read`, `user-read-recently-played`). Ako si se prijavio pre nego što je igra dodata, u igri tapni **Daj dozvolu**. Dok ne daš dozvolu, retkost se računa samo po datumu dodavanja.
 - Tap na „RETKOSTI“ prikazuje koliko pesama ima svaka retkost i koliko si kojih izvukao. Tu je i opcija „Počni od refrena“.
+- **Kolekcija**: kad skroluješ ispod dropa, vidiš sve pesme plejliste. Skupljene su u boji sa okvirom u boji retkosti, a neskupljene su zatamnjene sa „?“. Prikazani su napredak (ukupno i po retkosti) i broj duplikata. Sortiranje: retkost, izvođač, album, naziv, skoro izvučene, uz opciju „Skupljene prvo“. Tap na skupljenu pesmu je pušta.
+- Kad izvučeš pesmu koju već imaš, na kartici piše **DUPLIKAT ×N**, a nova pesma dobija oznaku **NOVO!**. Kolekcija se čuva posebno za svaku plejlistu.
 
 ---
 

@@ -1,6 +1,7 @@
 import type { GameDefinition } from '../types';
 import { SongDropPreview } from './SongDropPreview';
 import { SongDropScreen } from './SongDropScreen';
+import { loadCollection } from './collection';
 import { loadStats } from './storage';
 
 export const songDropGame: GameDefinition = {
@@ -13,7 +14,8 @@ export const songDropGame: GameDefinition = {
   screens: [{ name: 'song-drop/open', component: SongDropScreen }],
   Preview: SongDropPreview,
   getBadge: async (playlistId) => {
-    const stats = await loadStats(playlistId);
-    return stats.opened > 0 ? `Otvoreno: ${stats.opened}` : null;
+    const [stats, collection] = await Promise.all([loadStats(playlistId), loadCollection(playlistId)]);
+    const collected = Object.keys(collection).length;
+    return stats.opened > 0 ? `Kolekcija: ${collected}` : null;
   },
 };

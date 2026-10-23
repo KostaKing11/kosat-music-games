@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -25,6 +25,15 @@ import { AppButton } from '../../src/ui/AppButton';
 import { Screen } from '../../src/ui/Screen';
 import { SpotifyStatus } from '../../src/ui/SpotifyStatus';
 import { useToast } from '../../src/ui/Toast';
+import { CollectionCell, CollectionHeader } from './CollectionView';
+import {
+  addToCollection,
+  loadCollection,
+  saveCollection,
+  sortTracks,
+  type Collection,
+  type SortMode,
+} from './collection';
 import { DropStar, type DropAnimations, type Spark } from './DropStar';
 import {
   RARITIES,
@@ -41,7 +50,9 @@ const CHORUS_FRACTION = 0.35;
 const RECENT_LIMIT = 15;
 
 type Phase = 'loading' | 'ready' | 'opening' | 'revealed';
-type Pull = { track: Track; level: RarityLevel; id: number };
+type Pull = { track: Track; level: RarityLevel; id: number; /** koliko puta je pesma izvučena, sa ovim */ count?: number };
+
+const GRID_COLUMNS = 4;
 
 export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListBase>) {
   const { playlist, tracks } = useStore(selectionStore);
@@ -63,6 +74,10 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
   const [stats, setStats] = useState<DropStats>({ opened: 0, byLevel: [0, 0, 0, 0, 0] });
   const [chorus, setChorus] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
+  const [collection, setCollection] = useState<Collection>({});
+  const [sortMode, setSortMode] = useState<SortMode>('rarity');
+  const [collectedFirst, setCollectedFirst] = useState(true);
+  const collectionRef = useRef<Collection>({});
 
   const planRef = useRef<boolean[]>([]);
   // Ref-ovi da brzi uzastopni tapovi ne čitaju zastarelo stanje.
@@ -113,7 +128,13 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
   useEffect(() => {
     void preparePlayer();
     loadSettings().then((s) => setChorus(s.chorus));
-    if (playlist) loadStats(playlist.id).then(setStats);
+    if (playlist) {
+      loadStats(playlist.id).then(setStats);
+      loadCollection(playlist.id).then((c) => {
+        collectionRef.current = c;
+        setCollection(c);
+      });
+    }
   }, [playlist]);
 
   const spark = useCallback((count: number, color: string, power: number) => {
@@ -151,8 +172,13 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
   }, [phase, tiers, tracks.length, newDrop]);
 
   const reveal = useCallback(() => {
-    const pull = pullRef.current;
-    if (!pull) return;
+    const base = pullRef.current;
+    if (!base) return;
+    const { next, count } = addToCollection(collectionRef.current, base.track.uri);
+    collectionRef.current = next;
+    setCollection(next);
+    if (playlist) void saveCollection(playlist.id, next);
+    const pull = { ...base, count };
     setCurrent(pull);
     setPhase('revealed');
     setHistory((h) => [pull, ...h].slice(0, 20));
@@ -213,6 +239,26 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
     }
   };
 
+  const sortedTracks = useMemo(
+    () => sortTracks(tracks, sortMode, tiers ?? {}, collection, collectedFirst),
+    [tracks, sortMode, tiers, collection, collectedFirst]
+  );
+
+  const onCellPress = useCallback(
+    (track: Track) => {
+      const entry = collectionRef.current[track.uri];
+      const r = RARITIES[tiers?.[track.uri] ?? 0];
+      if (!entry) {
+        showToast(`Još nisi izvukao: ${track.name} (${r.name.toLowerCase()})`);
+        return;
+      }
+      const position = chorusRef.current ? Math.floor(track.durationMs * CHORUS_FRACTION) : 0;
+      showToast(`Svira: ${track.name}`);
+      playTrack(track.uri, position).catch((e) => showToast(`Pesma nije puštena: ${String(e?.message ?? e)}`));
+    },
+    [tiers, showToast]
+  );
+
   const replay = (pull: Pull) => {
     const position = chorusRef.current ? Math.floor(pull.track.durationMs * CHORUS_FRACTION) : 0;
     playTrack(pull.track.uri, position).catch((e) => showToast(`Pesma nije puštena: ${String(e?.message ?? e)}`));
@@ -235,18 +281,10 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
 
   const rarity = RARITIES[current?.level ?? level];
   const score = current && listening ? listening.scores[current.track.uri] ?? 0 : 0;
+  const cellSize = Math.floor((width - 32 - 8 * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 
-  return (
-    <Screen>
-      <View style={styles.topBar}>
-        <AppButton label="Meni" variant="text" compact onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>SONG DROP</Text>
-        <View style={styles.counter}>
-          <Text style={styles.counterValue}>{stats.opened}</Text>
-          <Text style={styles.counterLabel}>OTVORENO</Text>
-        </View>
-      </View>
-
+  const header = (
+    <View>
       <Pressable style={styles.tierRow} onPress={() => setShowInfo((v) => !v)}>
         {RARITIES.map((r, i) => (
           <View key={r.name} style={styles.tierItem}>
@@ -293,19 +331,30 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.stage} showsVerticalScrollIndicator={false}>
+      <View style={[styles.stage, { minHeight: dropSize + 100 }]}>
         {phase === 'revealed' && current ? (
           <Animated.View key={current.id} entering={ZoomIn.springify().damping(12)} style={styles.reveal}>
-            <View style={[styles.coverFrame, { borderColor: rarity.color, shadowColor: rarity.color }]}>
-              {current.track.coverLargeUrl || current.track.coverUrl ? (
-                <Image
-                  source={{ uri: current.track.coverLargeUrl ?? current.track.coverUrl ?? undefined }}
-                  style={{ width: dropSize * 0.72, height: dropSize * 0.72 }}
-                  contentFit="cover"
-                  transition={120}
-                />
+            <View>
+              <View style={[styles.coverFrame, { borderColor: rarity.color, shadowColor: rarity.color }]}>
+                {current.track.coverLargeUrl || current.track.coverUrl ? (
+                  <Image
+                    source={{ uri: current.track.coverLargeUrl ?? current.track.coverUrl ?? undefined }}
+                    style={{ width: dropSize * 0.68, height: dropSize * 0.68 }}
+                    contentFit="cover"
+                    transition={120}
+                  />
+                ) : (
+                  <View style={{ width: dropSize * 0.68, height: dropSize * 0.68, backgroundColor: colors.panelRaised }} />
+                )}
+              </View>
+              {(current.count ?? 1) <= 1 ? (
+                <View style={[styles.stamp, styles.stampNew]}>
+                  <Text style={styles.stampNewText}>NOVO!</Text>
+                </View>
               ) : (
-                <View style={{ width: dropSize * 0.72, height: dropSize * 0.72, backgroundColor: colors.panelRaised }} />
+                <View style={[styles.stamp, styles.stampDupe]}>
+                  <Text style={styles.stampDupeText}>DUPLIKAT ×{current.count}</Text>
+                </View>
               )}
             </View>
             <Text style={[styles.rarityName, { color: rarity.color }]}>{rarity.name}</Text>
@@ -346,7 +395,14 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
             </View>
           </Pressable>
         )}
-      </ScrollView>
+      </View>
+
+      {phase === 'revealed' && current ? (
+        <View style={styles.actions}>
+          <AppButton label="Sledeći drop" onPress={newDrop} style={{ flex: 1.4 }} />
+          <AppButton label="Pusti ponovo" variant="outline" onPress={() => replay(current)} style={{ flex: 1 }} />
+        </View>
+      ) : null}
 
       {history.length > 0 ? (
         <Animated.View entering={FadeIn} style={styles.historyWrap}>
@@ -370,12 +426,50 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
         </View>
       ) : null}
 
-      {phase === 'revealed' && current ? (
-        <View style={styles.actions}>
-          <AppButton label="Sledeći drop" onPress={newDrop} style={{ flex: 1.4 }} />
-          <AppButton label="Pusti ponovo" variant="outline" onPress={() => replay(current)} style={{ flex: 1 }} />
+      <CollectionHeader
+        tracks={tracks}
+        tiers={tiers ?? {}}
+        collection={collection}
+        sortMode={sortMode}
+        onSortMode={setSortMode}
+        collectedFirst={collectedFirst}
+        onCollectedFirst={setCollectedFirst}
+      />
+    </View>
+  );
+
+  return (
+    <Screen>
+      <View style={styles.topBar}>
+        <AppButton label="Meni" variant="text" compact onPress={() => navigation.goBack()} />
+        <Text style={styles.title}>SONG DROP</Text>
+        <View style={styles.counter}>
+          <Text style={styles.counterValue}>{stats.opened}</Text>
+          <Text style={styles.counterLabel}>OTVORENO</Text>
         </View>
-      ) : null}
+      </View>
+
+      <FlatList
+        data={sortedTracks}
+        keyExtractor={(t) => t.uri}
+        numColumns={GRID_COLUMNS}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <CollectionCell
+            track={item}
+            level={tiers?.[item.uri] ?? 0}
+            entry={collection[item.uri]}
+            size={cellSize}
+            onPress={onCellPress}
+          />
+        )}
+        columnWrapperStyle={{ gap: 8 }}
+        contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={12}
+        maxToRenderPerBatch={16}
+        windowSize={7}
+      />
       {toast}
     </Screen>
   );
@@ -432,7 +526,21 @@ const styles = StyleSheet.create({
   noticeTitle: { color: colors.text, fontFamily: fonts.bodySemi, fontSize: 14 },
   noticeBody: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
-  stage: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  stage: { alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  stamp: {
+    position: 'absolute',
+    top: -10,
+    right: -14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    transform: [{ rotate: '8deg' }],
+    borderWidth: 2,
+  },
+  stampNew: { backgroundColor: colors.accent, borderColor: '#ffe3ef' },
+  stampNewText: { color: '#1a0610', fontFamily: fonts.pixelBold, fontSize: 16, letterSpacing: 1 },
+  stampDupe: { backgroundColor: colors.panelRaised, borderColor: colors.border },
+  stampDupeText: { color: colors.textMuted, fontFamily: fonts.pixelBold, fontSize: 14, letterSpacing: 1 },
   dropArea: { alignItems: 'center' },
   dropLabel: { alignItems: 'center', gap: 10, minHeight: 64 },
   tapHint: { color: colors.textMuted, fontFamily: fonts.pixel, fontSize: 16, letterSpacing: 3 },
@@ -453,7 +561,7 @@ const styles = StyleSheet.create({
   songName: { color: colors.text, fontFamily: fonts.bodyBold, fontSize: 22, textAlign: 'center' },
   artist: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15 },
   why: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  historyWrap: { marginBottom: 10 },
+  historyWrap: { marginTop: 12 },
   historyCover: { width: 44, height: 44, borderRadius: 8, borderWidth: 2 },
-  actions: { flexDirection: 'row', gap: 12 },
+  actions: { flexDirection: 'row', gap: 12, marginTop: 6 },
 });
