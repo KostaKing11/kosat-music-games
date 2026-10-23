@@ -15,10 +15,10 @@ import { Screen } from '../../src/ui/Screen';
 import { SpotifyStatus } from '../../src/ui/SpotifyStatus';
 import { useToast } from '../../src/ui/Toast';
 import { CHORUS_FRACTION, GRID, SNAKE_ROUTES } from './constants';
-import { DPad } from './DPad';
 import type { GameOverParams } from './GameOverScreen';
 import { NextUpBar } from './NextUpBar';
 import { SnakeBoard, type Burst, type PlusOne } from './SnakeBoard';
+import { SwipePad } from './SwipePad';
 import { DEFAULT_SETTINGS, loadRecord, loadSettings, saveRecord, saveSettings, type SnakeSettings } from './storage';
 import { useSnakeEngine, type GameOverReason } from './useSnakeEngine';
 
@@ -288,9 +288,7 @@ export function SnakeScreen({ navigation }: NativeStackScreenProps<ParamListBase
         )}
       </View>
 
-      <View style={styles.controls}>
-        <DPad onTurn={onTurn} disabled={phase !== 'playing'} size={Math.min(56, Math.max(44, (height - boardSize) / 9))} />
-      </View>
+      <SwipePad onTurn={onTurn} disabled={phase !== 'playing'} />
 
       <NextUpBar track={foodTrack} />
 
@@ -316,7 +314,7 @@ export function SnakeScreen({ navigation }: NativeStackScreenProps<ParamListBase
             />
             <SpotifyStatus compact />
             <AppButton label="Kreni" onPress={startGame} style={{ marginTop: 6 }} />
-            <Text style={styles.hint}>Upravljaj swipe-om po tabli ili d-padom.</Text>
+            <Text style={styles.hint}>Swipe-uj po tabli ili po polju ispod nje.</Text>
           </View>
         </View>
       )}
@@ -384,7 +382,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   overText: { color: colors.accent, fontFamily: fonts.pixelBold, fontSize: 44, letterSpacing: 4 },
-  controls: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(7, 6, 15, 0.78)',
