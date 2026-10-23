@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   Easing,
+  withRepeat,
   FadeIn,
   ZoomIn,
   useSharedValue,
@@ -49,7 +50,8 @@ import { loadSettings, loadStats, saveSettings, saveStats, type DropStats } from
 const CHORUS_FRACTION = 0.35;
 const RECENT_LIMIT = 15;
 
-type Phase = 'loading' | 'ready' | 'opening' | 'revealed';
+/** charged = 4 tapa su prošla, vidi se konačna retkost, još jedan tap otvara drop. */
+type Phase = 'loading' | 'ready' | 'charged' | 'opening' | 'revealed';
 type Pull = { track: Track; level: RarityLevel; id: number; /** koliko puta je pesma izvučena, sa ovim */ count?: number };
 
 const GRID_COLUMNS = 4;
@@ -199,8 +201,26 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
     }
   }, [playlist, showToast]);
 
+  /** Peti tap: otvaranje dropa i otkrivanje pesme. */
+  const openDrop = () => {
+    const shown = levelRef.current;
+    setPhase('opening');
+    anim.squash.value = withSequence(withTiming(0.78, { duration: 90 }), withSpring(1, { damping: 6, stiffness: 240 }));
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
+    later(() => {
+      anim.open.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.quad) });
+      spark(40 + shown * 8, RARITIES[shown].color, 1 + shown * 0.25);
+      later(reveal, 320);
+    }, 140);
+  };
+
   const onTap = () => {
-    if (phase !== 'ready' || !pullRef.current || tapsRef.current >= TAPS_TO_OPEN) return;
+    if (!pullRef.current) return;
+    if (phase === 'charged') {
+      openDrop();
+      return;
+    }
+    if (phase !== 'ready' || tapsRef.current >= TAPS_TO_OPEN) return;
     const tapIndex = tapsRef.current;
     const nextTaps = tapIndex + 1;
     tapsRef.current = nextTaps;
@@ -229,13 +249,15 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
     }
 
     if (nextTaps >= TAPS_TO_OPEN) {
-      setPhase('opening');
+      // Drop stoji na konačnoj retkosti i blago pulsira dok ga ne otvoriš.
       later(() => {
-        anim.open.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.quad) });
-        spark(40 + shown * 8, RARITIES[shown].color, 1 + shown * 0.25);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
-        later(reveal, 320);
-      }, upgraded ? 650 : 280);
+        setPhase('charged');
+        anim.squash.value = withRepeat(
+          withSequence(withTiming(1.07, { duration: 420 }), withTiming(1, { duration: 420 })),
+          -1,
+          true
+        );
+      }, upgraded ? 450 : 200);
     }
   };
 
@@ -375,10 +397,17 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
             </Text>
           </Animated.View>
         ) : (
-          <Pressable onPress={onTap} disabled={phase !== 'ready'} style={styles.dropArea}>
+          <Pressable onPress={onTap} disabled={phase !== 'ready' && phase !== 'charged'} style={styles.dropArea}>
             <DropStar size={dropSize} level={level} anim={anim} sparks={sparks} />
             <View style={styles.dropLabel}>
-              {upgradeLabel ? (
+              {phase === 'charged' ? (
+                <>
+                  <Animated.Text key="final" entering={ZoomIn.springify().damping(8)} style={[styles.upgrade, { color: RARITIES[level].color }]}>
+                    {RARITIES[level].name}
+                  </Animated.Text>
+                  <Text style={styles.openHint}>TAPNI DA OTVORIŠ</Text>
+                </>
+              ) : upgradeLabel ? (
                 <Animated.Text key={upgradeLabel.id} entering={ZoomIn.springify().damping(8)} style={[styles.upgrade, { color: upgradeLabel.color }]}>
                   {upgradeLabel.text}
                 </Animated.Text>
@@ -543,6 +572,7 @@ const styles = StyleSheet.create({
   stampDupeText: { color: colors.textMuted, fontFamily: fonts.pixelBold, fontSize: 14, letterSpacing: 1 },
   dropArea: { alignItems: 'center' },
   dropLabel: { alignItems: 'center', gap: 10, minHeight: 64 },
+  openHint: { color: colors.text, fontFamily: fonts.pixel, fontSize: 14, letterSpacing: 3 },
   tapHint: { color: colors.textMuted, fontFamily: fonts.pixel, fontSize: 16, letterSpacing: 3 },
   upgrade: { fontFamily: fonts.pixelBold, fontSize: 30, letterSpacing: 3, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
   tapDots: { flexDirection: 'row', gap: 8 },

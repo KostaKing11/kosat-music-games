@@ -99,7 +99,7 @@ Push na druge grane samo proverava da li build prolazi. APK je tada u **Actions 
 
 Otvaranje dropova kao Starr Drop u Brawl Stars-u:
 
-- Tapneš drop 4 puta. Na tapovima može da „skoči“ na višu retkost: **Retka → Super retka → Epska → Mitska → Legendarna**. Na četvrtom tapu se otvori, izvučena pesma odmah krene na Spotify-ju, a onda otvaraš sledeći.
+- Tapneš drop 4 puta. Na tapovima može da „skoči“ na višu retkost: **Retka → Super retka → Epska → Mitska → Legendarna**. Posle četvrtog tapa drop stoji na konačnoj retkosti, da vidiš šta si dobio. Peti tap ga otvara, izvučena pesma odmah krene na Spotify-ju, a onda otvaraš sledeći.
 - Šanse da drop završi na retkosti: 50% / 28% / 15% / 5% / 2%.
 - **Retkost pesme zavisi od toga koliko je slušaš.** Najslušanije pesme su najčešće (Retke), a one koje skoro ne slušaš su Legendarne. Podaci dolaze iz Spotify top lista (4 nedelje, 6 meseci, ~godinu) i poslednjih 50 odslušanih pesama. Pesme bez tih podataka raspoređuju se po datumu dodavanja: ranije dodate su češće.
 - Za ovo su potrebne dve dodatne Spotify dozvole (`user-top-read`, `user-read-recently-played`). Ako si se prijavio pre nego što je igra dodata, u igri tapni **Daj dozvolu**. Dok ne daš dozvolu, retkost se računa samo po datumu dodavanja.
