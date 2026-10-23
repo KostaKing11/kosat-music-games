@@ -8,6 +8,9 @@ export const SPOTIFY_SCOPES = [
   'app-remote-control',
   'user-read-playback-state',
   'user-modify-playback-state',
+  // Statistika slušanja (retkost pesama u igri Song Drop)
+  'user-top-read',
+  'user-read-recently-played',
 ];
 
 export const SPOTIFY_PACKAGE = 'com.spotify.music';

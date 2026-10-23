@@ -34,6 +34,8 @@ type Session = {
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
 
 export const authStore = createStore<AuthStatus>('loading');
+/** Raste svaki put kad se sačuva nova sesija (npr. posle davanja novih dozvola). */
+export const sessionVersionStore = createStore(0);
 
 let session: Session | null = null;
 let refreshing: Promise<string> | null = null;
@@ -60,6 +62,7 @@ function toSession(token: TokenResponse, previousRefresh?: string): Session {
 
 async function saveSession(next: Session | null) {
   session = next;
+  sessionVersionStore.set((v) => v + 1);
   if (next) {
     await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
   } else {
@@ -93,6 +96,7 @@ async function refreshSession(current: Session): Promise<string> {
       discovery
     );
     const next = toSession(token, current.refreshToken);
+    next.scope = next.scope ?? current.scope;
     await saveSession(next);
     return next.accessToken;
   } catch (error) {
@@ -120,6 +124,12 @@ export async function getAccessToken(forceRefresh = false): Promise<string> {
     });
   }
   return refreshing;
+}
+
+/** Da li trenutni token ima sve navedene scope-ove (stari tokeni nemaju nove). */
+export function hasScopes(scopes: string[]): boolean {
+  const granted = new Set((session?.scope ?? '').split(/\s+/).filter(Boolean));
+  return scopes.every((s) => granted.has(s));
 }
 
 export async function signOut(): Promise<void> {

@@ -14,6 +14,10 @@ export type Track = {
   coverUrl: string | null;
   /** Najmanji omot (~64px) – za liste. */
   thumbUrl: string | null;
+  /** Najveći omot (~640px) – za velike prikaze. */
+  coverLargeUrl?: string | null;
+  /** Kada je pesma dodata u plejlistu / Liked Songs (ISO datum). */
+  addedAt?: string | null;
 };
 
 export type PlaylistSummary = {
@@ -124,6 +128,7 @@ function parseTrack(raw: unknown): Track | null {
     durationMs: Number(raw.duration_ms ?? 0),
     coverUrl: pickImage(album.images, 250),
     thumbUrl: pickImage(album.images, 60),
+    coverLargeUrl: pickImage(album.images, 600),
   };
 }
 
@@ -133,9 +138,10 @@ function parseTrack(raw: unknown): Track | null {
  */
 function trackFromEntry(entry: unknown): Track | null {
   if (!isObject(entry)) return null;
-  if (isObject(entry.item)) return parseTrack(entry.item);
-  if (isObject(entry.track)) return parseTrack(entry.track);
-  return null;
+  const raw = isObject(entry.item) ? entry.item : isObject(entry.track) ? entry.track : null;
+  const track = parseTrack(raw);
+  if (track && typeof entry.added_at === 'string') track.addedAt = entry.added_at;
+  return track;
 }
 
 /** Ukupan broj pesama: novo polje `items.total`, staro `tracks.total`. */
@@ -232,6 +238,32 @@ export function getPlaylistTracks(
 /** GET /me/tracks – Liked Songs. */
 export function getLikedTracks(onProgress?: (loaded: number, total: number | null) => void): Promise<Track[]> {
   return collectTracks(`/me/tracks?limit=${PAGE_SIZE}&market=from_token`, onProgress);
+}
+
+// ---------------------------------------------------------------------------
+// Statistika slušanja (scope-ovi user-top-read i user-read-recently-played)
+
+export type TopRange = 'short_term' | 'medium_term' | 'long_term';
+
+/** Najslušanije pesme za period (do 100: dve strane po 50). */
+export async function getTopTracks(range: TopRange): Promise<Track[]> {
+  const first = (await apiFetch(`/me/top/tracks?time_range=${range}&limit=50`)) ?? {};
+  const tracks = (Array.isArray(first.items) ? first.items : []).map(parseTrack).filter(Boolean) as Track[];
+  if (typeof first.next === 'string' && tracks.length === 50) {
+    try {
+      const second = (await apiFetch(first.next)) ?? {};
+      tracks.push(...((Array.isArray(second.items) ? second.items : []).map(parseTrack).filter(Boolean) as Track[]));
+    } catch {
+      // Druga strana nije obavezna.
+    }
+  }
+  return tracks;
+}
+
+/** Poslednjih 50 odslušanih pesama. */
+export async function getRecentlyPlayed(): Promise<Track[]> {
+  const body = (await apiFetch('/me/player/recently-played?limit=50')) ?? {};
+  return (Array.isArray(body.items) ? body.items : []).map(trackFromEntry).filter(Boolean) as Track[];
 }
 
 // ---------------------------------------------------------------------------
