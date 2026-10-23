@@ -95,6 +95,16 @@ Push na druge grane samo proverava da li build prolazi. APK je tada u **Actions 
 - **Radio mod**: muzika ide shuffle kroz plejlistu, a jedenje ne menja pesmu.
 - Igra se pauzira kad aplikacija ode u pozadinu. Rekord se čuva posebno za svaku plejlistu.
 
+## 5b. Song Drop
+
+Otvaranje dropova kao Starr Drop u Brawl Stars-u:
+
+- Tapneš drop 4 puta. Na tapovima može da „skoči“ na višu retkost: **Retka → Super retka → Epska → Mitska → Legendarna**. Na četvrtom tapu se otvori, izvučena pesma odmah krene na Spotify-ju, a onda otvaraš sledeći.
+- Šanse da drop završi na retkosti: 50% / 28% / 15% / 5% / 2%.
+- **Retkost pesme zavisi od toga koliko je slušaš.** Najslušanije pesme su najčešće (Retke), a one koje skoro ne slušaš su Legendarne. Podaci dolaze iz Spotify top lista (4 nedelje, 6 meseci, ~godinu) i poslednjih 50 odslušanih pesama. Pesme bez tih podataka raspoređuju se po datumu dodavanja: ranije dodate su češće.
+- Za ovo su potrebne dve dodatne Spotify dozvole (`user-top-read`, `user-read-recently-played`). Ako si se prijavio pre nego što je igra dodata, u igri tapni **Daj dozvolu**. Dok ne daš dozvolu, retkost se računa samo po datumu dodavanja.
+- Tap na „RETKOSTI“ prikazuje koliko pesama ima svaka retkost i koliko si kojih izvukao. Tu je i opcija „Počni od refrena“.
+
 ---
 
 ## 6. Arhitektura
@@ -107,12 +117,14 @@ src/
     player.ts          App Remote modul + Web API rezerva, stanje veze
     playlistStore.ts   izbor plejliste i lokalni keš pesama
     coverImages.ts     omoti kao Skia slike + paleta boja (za sve igre)
+    listeningStats.ts  koliko slušaš koju pesmu (top liste + nedavno slušano)
   screens/             Login, izbor plejliste, meni igrica
   ui/                  zajedničke komponente (zvezdana pozadina, dugmad, poruke)
 games/
   index.ts             registar igara
   types.ts             ugovor koji igra ispunjava (GameDefinition)
   snake/               Snake: engine (worklet), Skia tabla, ekrani igre i kraja
+  song-drop/           Song Drop: retkosti, Skia drop zvezda, ekran otvaranja
   guess-song/          „Pogodi pesmu“ (za sada zaključana kartica)
 modules/spotify-remote/  lokalni Expo modul: Kotlin + Spotify App Remote SDK 0.8.0 + config plugin
 plugins/withReleaseSigning.js  config plugin za release potpis iz env varijabli

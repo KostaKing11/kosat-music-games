@@ -16,7 +16,8 @@ import { createStore } from './store';
 const KEY_ME = 'me:v1';
 const KEY_PLAYLISTS = 'playlists:v1';
 const KEY_SELECTED = 'selected:v1';
-const tracksKey = (id: string) => `tracks:v1:${id}`;
+// v2: pesme imaju i addedAt i veliki omot.
+const tracksKey = (id: string) => `tracks:v2:${id}`;
 
 type TrackCache = { snapshotId: string | null; savedAt: number; tracks: Track[] };
 
