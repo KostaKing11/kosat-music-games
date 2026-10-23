@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   Easing,
   withRepeat,
-  FadeIn,
   ZoomIn,
   useSharedValue,
   withSequence,
@@ -70,7 +69,6 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
   const [level, setLevel] = useState(0);
   const [taps, setTaps] = useState(0);
   const [current, setCurrent] = useState<Pull | null>(null);
-  const [history, setHistory] = useState<Pull[]>([]);
   const [sparks, setSparks] = useState<Spark[]>([]);
   const [upgradeLabel, setUpgradeLabel] = useState<{ id: number; text: string; color: string } | null>(null);
   const [stats, setStats] = useState<DropStats>({ opened: 0, byLevel: [0, 0, 0, 0, 0] });
@@ -183,7 +181,6 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
     const pull = { ...base, count };
     setCurrent(pull);
     setPhase('revealed');
-    setHistory((h) => [pull, ...h].slice(0, 20));
     recentRef.current = [pull.track.uri, ...recentRef.current].slice(0, RECENT_LIMIT);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
@@ -265,6 +262,8 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
     () => sortTracks(tracks, sortMode, tiers ?? {}, collection, collectedFirst),
     [tracks, sortMode, tiers, collection, collectedFirst]
   );
+
+  const collectedCount = useMemo(() => tracks.filter((t) => collection[t.uri]).length, [tracks, collection]);
 
   const onCellPress = useCallback(
     (track: Track) => {
@@ -433,21 +432,6 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
         </View>
       ) : null}
 
-      {history.length > 0 ? (
-        <Animated.View entering={FadeIn} style={styles.historyWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {history.map((p) => (
-              <Pressable key={p.id} onPress={() => replay(p)}>
-                {p.track.thumbUrl ? (
-                  <Image source={{ uri: p.track.thumbUrl }} style={[styles.historyCover, { borderColor: RARITIES[p.level].color }]} />
-                ) : (
-                  <View style={[styles.historyCover, { borderColor: RARITIES[p.level].color, backgroundColor: colors.panelRaised }]} />
-                )}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      ) : null}
 
       {player.mode !== 'remote' && player.mode !== 'web' && player.mode !== 'idle' && player.mode !== 'connecting' ? (
         <View style={{ marginBottom: 8 }}>
@@ -473,8 +457,10 @@ export function SongDropScreen({ navigation }: NativeStackScreenProps<ParamListB
         <AppButton label="Meni" variant="text" compact onPress={() => navigation.goBack()} />
         <Text style={styles.title}>SONG DROP</Text>
         <View style={styles.counter}>
-          <Text style={styles.counterValue}>{stats.opened}</Text>
-          <Text style={styles.counterLabel}>OTVORENO</Text>
+          <Text style={styles.counterValue}>
+            {collectedCount}/{tracks.length}
+          </Text>
+          <Text style={styles.counterLabel}>SKUPLJENO</Text>
         </View>
       </View>
 
@@ -591,7 +577,5 @@ const styles = StyleSheet.create({
   songName: { color: colors.text, fontFamily: fonts.bodyBold, fontSize: 22, textAlign: 'center' },
   artist: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15 },
   why: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  historyWrap: { marginTop: 12 },
-  historyCover: { width: 44, height: 44, borderRadius: 8, borderWidth: 2 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 6 },
 });
