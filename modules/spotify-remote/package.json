@@ -1,0 +1,7 @@
+{
+  "name": "spotify-remote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spotify App Remote SDK (Android) kao lokalni Expo modul",
+  "main": "index.ts"
+}

@@ -1,0 +1,4 @@
+-keep class com.spotify.protocol.types.** { *; }
+-keep class com.spotify.android.appremote.** { *; }
+-dontwarn com.spotify.**
+-dontwarn com.fasterxml.jackson.**
