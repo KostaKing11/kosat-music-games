@@ -46,6 +46,8 @@ export function SnakeScreen({ navigation }: NativeStackScreenProps<ParamListBase
   const [settings, setSettings] = useState<SnakeSettings>(DEFAULT_SETTINGS);
   const [record, setRecord] = useState(0);
   const [foodTrack, setFoodTrack] = useState<Track | null>(null);
+  // Brojač hrane – ista pesma može ponovo da bude hrana (npr. plejlista sa jednom pesmom).
+  const [foodSeq, setFoodSeq] = useState(0);
   const [foodCover, setFoodCover] = useState<Cover | null>(null);
   const [eaten, setEaten] = useState<Track[]>([]);
   const [covers, setCovers] = useState<Cover[]>([]);
@@ -91,6 +93,7 @@ export function SnakeScreen({ navigation }: NativeStackScreenProps<ParamListBase
   const setFood = useCallback((track: Track | null) => {
     foodTrackRef.current = track;
     setFoodTrack(track);
+    setFoodSeq((n) => n + 1);
   }, []);
 
   const playEaten = useCallback(
@@ -184,7 +187,7 @@ export function SnakeScreen({ navigation }: NativeStackScreenProps<ParamListBase
     return () => {
       cancelled = true;
     };
-  }, [foodTrack, engine.foodReveal]);
+  }, [foodTrack, foodSeq, engine.foodReveal]);
 
   const pauseGame = useCallback(() => {
     if (phaseRef.current !== 'playing') return;
